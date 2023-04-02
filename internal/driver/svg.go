@@ -18,7 +18,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/pprof/third_party/svgpan"
+	"github.com/michal-kowalcze/pprof-server/third_party/svgpan"
 )
 
 var (

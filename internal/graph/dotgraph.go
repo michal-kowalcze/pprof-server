@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/pprof/internal/measurement"
+	"github.com/michal-kowalcze/pprof-server/internal/measurement"
 )
 
 // DotAttributes contains details about the graph itself, giving

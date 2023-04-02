@@ -21,9 +21,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/proftest"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/proftest"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 var testM = []*profile.Mapping{

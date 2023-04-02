@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 func edgeDebugString(edge *Edge) string {

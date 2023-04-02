@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 // makeTestStacks generates a StackSet from a supplied list of samples.

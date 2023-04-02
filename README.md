@@ -1,6 +1,6 @@
-[![Github Action CI](https://github.com/google/pprof/workflows/ci/badge.svg)](https://github.com/google/pprof/actions)
+[![Github Action CI](https://github.com/michal-kowalcze/pprof-server/workflows/ci/badge.svg)](https://github.com/michal-kowalcze/pprof-server/actions)
 [![Codecov](https://codecov.io/gh/google/pprof/graph/badge.svg)](https://codecov.io/gh/google/pprof)
-[![Go Reference](https://pkg.go.dev/badge/github.com/google/pprof/profile.svg)](https://pkg.go.dev/github.com/google/pprof/profile)
+[![Go Reference](https://pkg.go.dev/badge/github.com/michal-kowalcze/pprof-server/profile.svg)](https://pkg.go.dev/github.com/michal-kowalcze/pprof-server/profile)
 
 # Introduction
 
@@ -37,7 +37,7 @@ Prerequisites:
 
 To build and install it:
 
-    go install github.com/google/pprof@latest
+    go install github.com/michal-kowalcze/pprof-server@latest
 
 The binary will be installed `$GOPATH/bin` (`$HOME/go/bin` by default).
 

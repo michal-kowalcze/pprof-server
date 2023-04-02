@@ -29,10 +29,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/pprof/internal/graph"
-	"github.com/google/pprof/internal/measurement"
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/graph"
+	"github.com/michal-kowalcze/pprof-server/internal/measurement"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 // printSource prints an annotated source listing, include all

@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 // Options groups all the optional plugins into pprof.
@@ -210,7 +210,5 @@ type HTTPServerArgs struct {
 	Host string // Host portion of Hostport
 	Port int    // Port portion of Hostport
 
-	// Handlers maps from URL paths to the handler to invoke to
-	// serve that path.
-	Handlers map[string]http.Handler
+	Handler http.HandlerFunc
 }

@@ -21,10 +21,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/pprof/internal/binutils"
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/symbolizer"
-	"github.com/google/pprof/internal/transport"
+	"github.com/michal-kowalcze/pprof-server/internal/binutils"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/symbolizer"
+	"github.com/michal-kowalcze/pprof-server/internal/transport"
 )
 
 // setDefaults returns a new plugin.Options with zero fields sets to

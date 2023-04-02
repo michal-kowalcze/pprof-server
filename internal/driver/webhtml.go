@@ -20,7 +20,7 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/google/pprof/third_party/d3flamegraph"
+	"github.com/michal-kowalcze/pprof-server/third_party/d3flamegraph"
 )
 
 //go:embed html

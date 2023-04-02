@@ -1,4 +1,4 @@
-module github.com/google/pprof
+module github.com/michal-kowalcze/pprof-server
 
 go 1.19
 

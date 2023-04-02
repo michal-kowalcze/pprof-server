@@ -25,9 +25,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/report"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/report"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 // PProf acquires a profile, and symbolizes it using a profile
@@ -54,7 +54,10 @@ func PProf(eo *plugin.Options) error {
 	}
 
 	if src.HTTPHostport != "" {
-		return serveWebInterface(src.HTTPHostport, p, o, src.HTTPDisableBrowser)
+		provider := &InMemoryProvider{
+			ProfBytes: makeProfileCopier(p),
+		}
+		return serveWebInterface(src.HTTPHostport, provider, o, src.HTTPDisableBrowser)
 	}
 	return interactive(p, o)
 }

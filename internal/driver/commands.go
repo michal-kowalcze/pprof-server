@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/report"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/report"
 )
 
 // commands describes the commands accepted by pprof.

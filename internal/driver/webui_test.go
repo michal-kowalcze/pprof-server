@@ -27,9 +27,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/proftest"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/proftest"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 func makeTestServer(t testing.TB, prof *profile.Profile) *httptest.Server {
@@ -41,18 +41,16 @@ func makeTestServer(t testing.TB, prof *profile.Profile) *httptest.Server {
 	var server *httptest.Server
 	serverCreated := make(chan bool)
 	creator := func(a *plugin.HTTPServerArgs) error {
-		server = httptest.NewServer(http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				if h := a.Handlers[r.URL.Path]; h != nil {
-					h.ServeHTTP(w, r)
-				}
-			}))
+		server = httptest.NewServer(a.Handler)
 		serverCreated <- true
 		return nil
 	}
 
 	// Start server and wait for it to be initialized
-	go serveWebInterface("unused:1234", prof, &plugin.Options{
+	provider := &InMemoryProvider{
+		ProfBytes: makeProfileCopier(prof),
+	}
+	go serveWebInterface("unused:1234", provider, &plugin.Options{
 		Obj:        fakeObjTool{},
 		UI:         &proftest.TestUI{T: t},
 		HTTPServer: creator,
@@ -113,54 +111,60 @@ func TestWebInterface(t *testing.T) {
 		}, false},
 	}
 	for _, c := range testcases {
-		if c.needDot && !haveDot {
-			t.Log("skipping", c.path, "since dot (graphviz) does not seem to be installed")
-			continue
-		}
-		res, err := http.Get(server.URL + c.path)
-		if err != nil {
-			t.Error("could not fetch", c.path, err)
-			continue
-		}
-		data, err := io.ReadAll(res.Body)
-		if err != nil {
-			t.Error("could not read response", c.path, err)
-			continue
-		}
-		result := string(data)
-		for _, w := range c.want {
-			if match, _ := regexp.MatchString(w, result); !match {
-				t.Errorf("response for %s does not match "+
-					"expected pattern '%s'; "+
-					"actual result:\n%s", c.path, w, result)
+		t.Run(c.path, func(t *testing.T) {
+			if c.needDot && !haveDot {
+				t.Log("skipping", c.path, "since dot (graphviz) does not seem to be installed")
+				return
 			}
-		}
+			testUrl := server.URL + "/id" + c.path
+			res, err := http.Get(testUrl)
+			if err != nil {
+				t.Errorf("could not fetch %s: %s", testUrl, err)
+				return
+			}
+			data, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Errorf("could not read response %s: %s", testUrl, err)
+				return
+			}
+			result := string(data)
+			for _, w := range c.want {
+				if match, _ := regexp.MatchString(w, result); !match {
+					t.Errorf("response for %s does not match "+
+						"expected pattern '%s'; "+
+						"actual result:\n%s", testUrl, w, result)
+				}
+			}
+
+		})
 	}
 
 	// Also fetch all the test case URLs in parallel to test thread
 	// safety when run under the race detector.
-	var wg sync.WaitGroup
-	for _, c := range testcases {
-		if c.needDot && !haveDot {
-			continue
+	t.Run("race detector", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for _, c := range testcases {
+			if c.needDot && !haveDot {
+				continue
+			}
+			path := server.URL + "/id" + c.path
+			for count := 0; count < 2; count++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					res, err := http.Get(path)
+					if err != nil {
+						t.Errorf("could not fetch %s:%s", path, err)
+						return
+					}
+					if _, err = io.ReadAll(res.Body); err != nil {
+						t.Errorf("could not read response %s;%s", path, err)
+					}
+				}()
+			}
 		}
-		path := server.URL + c.path
-		for count := 0; count < 2; count++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				res, err := http.Get(path)
-				if err != nil {
-					t.Error("could not fetch", path, err)
-					return
-				}
-				if _, err = io.ReadAll(res.Body); err != nil {
-					t.Error("could not read response", path, err)
-				}
-			}()
-		}
-	}
-	wg.Wait()
+		wg.Wait()
+	})
 }
 
 // Implement fake object file support.

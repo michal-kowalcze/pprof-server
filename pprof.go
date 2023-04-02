@@ -19,16 +19,31 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 
 	"github.com/chzyer/readline"
-	"github.com/google/pprof/driver"
+	"github.com/michal-kowalcze/pprof-server/driver"
 )
 
 func main() {
 	if err := driver.PProf(&driver.Options{UI: newUI()}); err != nil {
 		fmt.Fprintf(os.Stderr, "pprof: %v\n", err)
+
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			return
+		}
+
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			return
+		}
+
+		if err := f.Close(); err != nil {
+			return
+		}
+
 		os.Exit(2)
 	}
 }

@@ -22,10 +22,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/pprof/internal/binutils"
-	"github.com/google/pprof/internal/graph"
-	"github.com/google/pprof/internal/proftest"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/binutils"
+	"github.com/michal-kowalcze/pprof-server/internal/graph"
+	"github.com/michal-kowalcze/pprof-server/internal/proftest"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
 
 type testcase struct {

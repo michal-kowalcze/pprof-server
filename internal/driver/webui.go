@@ -27,11 +27,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/pprof/internal/graph"
-	"github.com/google/pprof/internal/plugin"
-	"github.com/google/pprof/internal/report"
-	"github.com/google/pprof/profile"
+	"github.com/michal-kowalcze/pprof-server/internal/graph"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/report"
+	"github.com/michal-kowalcze/pprof-server/profile"
 )
+
+type profProvider interface {
+	GetProfile(id string) ([]byte, error)
+}
+
+type InMemoryProvider struct {
+	ProfBytes []byte
+}
+
+func (i *InMemoryProvider) GetProfile(_ string) ([]byte, error) {
+	return i.ProfBytes, nil
+}
 
 // webInterface holds the state needed for serving a browser based interface.
 type webInterface struct {
@@ -92,39 +104,46 @@ type webArgs struct {
 	Configs     []configMenuEntry
 }
 
-func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
+func serveWebInterface(hostport string, provider profProvider, o *plugin.Options, disableBrowser bool) error {
 	host, port, err := getHostAndPort(hostport)
 	if err != nil {
 		return err
 	}
 	interactiveMode = true
-	copier := makeProfileCopier(p)
-	ui, err := makeWebInterface(p, copier, o)
-	if err != nil {
-		return err
-	}
-	for n, c := range pprofCommands {
-		ui.help[n] = c.description
-	}
-	for n, help := range configHelp {
-		ui.help[n] = help
-	}
-	ui.help["details"] = "Show information about the profile and this view"
-	ui.help["graph"] = "Display profile as a directed graph"
-	ui.help["flamegraph"] = "Display profile as a flame graph"
-	ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
-	ui.help["reset"] = "Show the entire profile"
-	ui.help["save_config"] = "Save current settings"
 
 	server := o.HTTPServer
 	if server == nil {
 		server = defaultWebServer
 	}
-	args := &plugin.HTTPServerArgs{
-		Hostport: net.JoinHostPort(host, strconv.Itoa(port)),
-		Host:     host,
-		Port:     port,
-		Handlers: map[string]http.Handler{
+
+	serveProf := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		idAndUrl := strings.TrimPrefix(req.URL.Path, "/")
+		nextSlashIndex := strings.Index(idAndUrl, "/")
+		var id, path string
+		if nextSlashIndex < 0 {
+			http.Redirect(w, req, req.URL.String()+"/", http.StatusPermanentRedirect)
+			return
+		} else {
+			id = idAndUrl[0:nextSlashIndex]
+			path = idAndUrl[nextSlashIndex:]
+		}
+
+		profileBytes, _ := provider.GetProfile(id)
+		copier := profileCopier(profileBytes)
+		ui, _ := makeWebInterface(copier.newCopy(), copier, o)
+		for n, c := range pprofCommands {
+			ui.help[n] = c.description
+		}
+		for n, help := range configHelp {
+			ui.help[n] = help
+		}
+		ui.help["details"] = "Show information about the profile and this view"
+		ui.help["graph"] = "Display profile as a directed graph"
+		ui.help["flamegraph"] = "Display profile as a flame graph"
+		ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
+		ui.help["reset"] = "Show the entire profile"
+		ui.help["save_config"] = "Save current settings"
+		handlers := map[string]http.Handler{
 			"/":             http.HandlerFunc(ui.dot),
 			"/top":          http.HandlerFunc(ui.top),
 			"/disasm":       http.HandlerFunc(ui.disasm),
@@ -134,12 +153,20 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 			"/flamegraph2":  http.HandlerFunc(ui.stackView), // Experimental
 			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
 			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
-			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
-				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
-				p.Write(w)
-			}),
-		},
+			"/download":     http.HandlerFunc(ui.download),
+		}
+		handler, found := handlers[path]
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		handler.ServeHTTP(w, req)
+	})
+	args := &plugin.HTTPServerArgs{
+		Hostport: net.JoinHostPort(host, strconv.Itoa(port)),
+		Host:     host,
+		Port:     port,
+		Handler:  serveProf,
 	}
 
 	url := "http://" + args.Hostport
@@ -151,7 +178,11 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 	}
 	return server(args)
 }
-
+func (ui *webInterface) download(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
+	w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
+	_ = ui.prof.Write(w)
+}
 func getHostAndPort(hostport string) (string, int, error) {
 	host, portStr, err := net.SplitHostPort(hostport)
 	if err != nil {
@@ -184,31 +215,14 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
 	if err != nil {
 		return err
 	}
-	isLocal := isLocalhost(args.Host)
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if isLocal {
-			// Only allow local clients
-			host, _, err := net.SplitHostPort(req.RemoteAddr)
-			if err != nil || !isLocalhost(host) {
-				http.Error(w, "permission denied", http.StatusForbidden)
-				return
-			}
-		}
-		h := args.Handlers[req.URL.Path]
-		if h == nil {
-			// Fall back to default behavior
-			h = http.DefaultServeMux
-		}
-		h.ServeHTTP(w, req)
-	})
 
 	// We serve the ui at /ui/ and redirect there from the root. This is done
 	// to surface any problems with serving the ui at a non-root early. See:
 	//
-	// https://github.com/google/pprof/pull/348
+	// https://github.com/michal-kowalcze/pprof-server/pull/348
 	mux := http.NewServeMux()
-	mux.Handle("/ui/", http.StripPrefix("/ui", handler))
-	mux.Handle("/", redirectWithQuery("/ui"))
+	mux.Handle("/ui/", http.StripPrefix("/ui", args.Handler))
+	mux.Handle("/", redirectWithQuery("/ui/id-1/"))
 	s := &http.Server{Handler: mux}
 	return s.Serve(ln)
 }

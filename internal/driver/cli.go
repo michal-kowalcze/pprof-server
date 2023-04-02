@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/pprof/internal/binutils"
-	"github.com/google/pprof/internal/plugin"
+	"github.com/michal-kowalcze/pprof-server/internal/binutils"
+	"github.com/michal-kowalcze/pprof-server/internal/plugin"
 )
 
 type source struct {
