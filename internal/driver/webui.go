@@ -17,6 +17,7 @@ package driver
 import (
 	"bytes"
 	"fmt"
+	"github.com/michal-kowalcze/pprof-server/internal/binutils"
 	"html/template"
 	"net"
 	"net/http"
@@ -116,7 +117,29 @@ func serveWebInterface(hostport string, provider profProvider, o *plugin.Options
 		server = defaultWebServer
 	}
 
-	serveProf := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	args := &plugin.HTTPServerArgs{
+		Hostport: net.JoinHostPort(host, strconv.Itoa(port)),
+		Host:     host,
+		Port:     port,
+		Handler:  ProfHandler(provider),
+	}
+
+	url := "http://" + args.Hostport
+
+	o.UI.Print("Serving web UI on ", url)
+
+	if o.UI.WantBrowser() && !disableBrowser {
+		go openBrowser(url, o)
+	}
+	return server(args)
+}
+
+func ProfHandler(provider profProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		o := &plugin.Options{
+			UI:  &stdUI{},
+			Obj: &binutils.Binutils{},
+		}
 		idAndUrl := strings.TrimPrefix(req.URL.Path, "/")
 		nextSlashIndex := strings.Index(idAndUrl, "/")
 		var id, path string
@@ -161,22 +184,7 @@ func serveWebInterface(hostport string, provider profProvider, o *plugin.Options
 			return
 		}
 		handler.ServeHTTP(w, req)
-	})
-	args := &plugin.HTTPServerArgs{
-		Hostport: net.JoinHostPort(host, strconv.Itoa(port)),
-		Host:     host,
-		Port:     port,
-		Handler:  serveProf,
 	}
-
-	url := "http://" + args.Hostport
-
-	o.UI.Print("Serving web UI on ", url)
-
-	if o.UI.WantBrowser() && !disableBrowser {
-		go openBrowser(url, o)
-	}
-	return server(args)
 }
 func (ui *webInterface) download(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
